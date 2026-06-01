@@ -1,0 +1,159 @@
+---
+title: '2484555'
+author: "Bertuğ Orman"
+date: "2026-05-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+# ==============================================================================
+# AIN-2002: DATA CLEANING, EDA, AND REGRESSION MODELING
+# 2nd Homework Assignment - Spring 2026
+# ==============================================================================
+
+# --- PART 0: DATASET CREATION ---
+# We initialize the dataset using the provided seed and parameters[cite: 22, 33].
+set.seed(42) 
+
+df_assignment <- data.frame(
+  Student_ID = 1:50, 
+  Study_Hours = c(10, 12, NA, 15, 8, 20, 22, 5, 30, NA, 14, 18, 45, 11, 9, 21, 25, 13, 16, 28, 
+                  10, 12, 14, NA, 8, 19, 23, 6, 31, 15, 14, 18, 12, 11, 9, 22, 26, 13, 17, 29, 
+                  10, 13, 15, 11, 7, 20, 24, 5, 32, 16), 
+  Attendance_Rate = c(0.85, 0.90, 0.70, NA, 0.60, 0.95, 0.88, 0.40, 1.0, 0.75, 0.82, NA, 1.20, 0.88, 0.65, 
+                      0.92, 0.98, 0.76, 0.84, 0.99, 0.85, 0.91, 0.83, 0.68, 0.62, 0.96, 0.89, 0.42, 1.0, 0.77, 
+                      0.81, 0.87, 0.84, 0.89, 0.66, 0.93, 0.97, 0.75, 0.85, 0.98, 0.86, 0.92, 0.82, 0.88, 0.61, 
+                      0.94, 0.90, 0.41, 1.0, 0.78),
+  Extracurricular = c("Yes", "no", "YES", "No", "no", "Yes", "No", "no", "Yes", "YES", "No", "Yes", "Yes", "No", "no", 
+                      "Yes", "No", "no", "Yes", "Yes", "No", "No", "Yes", "no", "No", "Yes", "No", "no", "Yes", "No", 
+                      "No", "Yes", "No", "No", "no", "Yes", "No", "no", "Yes", "Yes", "No", "No", "Yes", "No", "No", 
+                      "Yes", "No", "no", "Yes", "No"), 
+  Final_Grade = c(75, 82, 60, 88, 55, 92, 85, 40, 98, 70, 78, 84, 250, 76, 62, 90, 95, 72, 80, 96, 
+                  74, 83, 77, 65, 58, 91, 87, 42, 99, 71, 79, 85, 73, 75, 63, 92, 94, 70, 81, 97, 
+                  76, 84, 78, 74, 56, 93, 88, 41, 100, 72) 
+)
+```
+
+```{r}
+# --- TASK 1: DATA CLEANING ---
+
+# 1.1 Missing Values: Apply median imputation. 
+# Interpretation: Median is preferred over mean because it is robust against outliers present 
+# in Study_Hours and Final_Grade.
+df_assignment$Study_Hours[is.na(df_assignment$Study_Hours)] <- median(df_assignment$Study_Hours, na.rm = TRUE)
+df_assignment$Attendance_Rate[is.na(df_assignment$Attendance_Rate)] <- median(df_assignment$Attendance_Rate, na.rm = TRUE) 
+
+# 1.2 Inconsistency: Normalize Extracurricular labels and convert to factor
+# Interpretation: Normalization ensures that "YES", "Yes", and "no" with spaces are 
+# treated as identical categories.
+df_assignment$Extracurricular <- trimws(tolower(df_assignment$Extracurricular)) 
+df_assignment$Extracurricular <- as.factor(df_assignment$Extracurricular) 
+
+# 1.3 Outliers: Correct logically impossible values.
+# Interpretation: Attendance cannot exceed 1.0 (100%), and grades cannot exceed. 
+# We use capping (Winsorization) to correct these values.
+df_assignment$Attendance_Rate[df_assignment$Attendance_Rate > 1.0] <- 1.0 
+df_assignment$Final_Grade[df_assignment$Final_Grade > 100] <- 100 
+```
+
+```{r}
+# --- TASK 2: EXPLORATORY DATA ANALYSIS (EDA) ---
+
+# Visualizing distribution of Final_Grade.
+hist(df_assignment$Final_Grade, 
+     main = "Distribution of Final Grades", 
+     xlab = "Final Grade", col = "skyblue", border = "white") 
+
+# Comparing grades by extracurricular activity.
+boxplot(Final_Grade ~ Extracurricular, data = df_assignment,
+        main = "Final Grade by Extracurricular Participation",
+        xlab = "Extracurricular Activity", ylab = "Final Grade",
+        col = c("orange", "lightgreen")) 
+```
+```{r}
+# --- TASK 3: CORRELATION ANALYSIS ---
+
+# Calculate Pearson and Spearman coefficients.
+pearson_corr <- cor(df_assignment$Study_Hours, df_assignment$Final_Grade, method = "pearson") 
+spearman_corr <- cor(df_assignment$Study_Hours, df_assignment$Final_Grade, method = "spearman") 
+
+print(paste("Pearson Correlation:", round(pearson_corr, 4))) 
+print(paste("Spearman Correlation:", round(spearman_corr, 4))) 
+# Interpretation: Spearman captures monotonic relationships, while Pearson captures linear ones. 
+# A difference between them indicates potential non-linearity or influence of outliers.
+```
+
+```{r}
+# --- TASK 4: REGRESSION MODELING ---
+
+# Build multiple linear regression model.
+model <- lm(Final_Grade ~ Study_Hours + Attendance_Rate + Extracurricular, data = df_assignment) 
+summary(model) 
+# Interpretation: Review the summary to identify variables with p-values < 0.05
+```
+```{r}
+# --- TASK 5: MODEL PERFORMANCE AND RMSE ---
+
+# Manual RMSE calculation.
+y_predicted <- fitted.values(model) 
+y_observed <- df_assignment$Final_Grade 
+rmse <- sqrt(mean((y_observed - y_predicted)^2)) 
+print(paste("Manual RMSE:", round(rmse, 4))) 
+```
+
+```{r}
+# --- TASK 6: INTERPRETATION ---
+
+# R-squared explanation[cite: 61].
+# Interpretation: R-squared represents the proportion of variance in Final_Grade 
+# explained by the independent variables in the model.
+
+# Regression coefficient for Study_Hours.
+study_coef <- coef(model)["Study_Hours"]
+print(paste("Grade change per study hour:", round(study_coef, 4))) 
+# Interpretation: For every one-unit increase in Study Hours, the Final Grade 
+# is predicted to change by the value of this coefficient.
+```
+
+```{r}
+# --- TASK 7: REGRESSION VISUALIZATION ---
+
+# Scatter plot with regression line.
+plot(df_assignment$Study_Hours, df_assignment$Final_Grade,
+     main = "Study Hours vs Final Grade",
+     xlab = "Study Hours", ylab = "Final Grade", pch = 19, col = "darkblue") 
+abline(lm(Final_Grade ~ Study_Hours, data = df_assignment), col = "red", lwd = 2)
+# Interpretation: The plot shows how closely the data points cluster around the linear fit, 
+# indicating the strength of the relationship.
+```
+
+```{r}
+# --- TASK 8: RESIDUAL ANALYSIS ---
+
+# Residuals vs Fitted plot.
+res <- residuals(model) 
+plot(y_predicted, res, 
+     main = "Residuals vs Fitted Plot",
+     xlab = "Fitted Values", ylab = "Residuals", pch = 19) 
+abline(h = 0, col = "red", lty = 2) 
+# Interpretation: Random distribution around zero suggests linearity and homoscedasticity. 
+# A funnel or U-shape would suggest violations of these assumptions.
+```
+
+```{r}
+# --- BONUS: HIGH LEVERAGE POINTS ---
+
+# Cook's Distance visualization.
+cooks_d <- cooks.distance(model) 
+plot(cooks_d, type = "h", main = "Cook's Distance Visualization", 
+     xlab = "Index", ylab = "Cook's Distance", col = "darkred") 
+# Interpretation: High Cook's Distance values identify influential observations 
+# that significantly impact the regression slope.
+```
+
